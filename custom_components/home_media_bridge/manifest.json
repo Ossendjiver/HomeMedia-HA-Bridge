@@ -1,0 +1,17 @@
+{
+  "domain": "home_media_bridge",
+  "name": "Home Media Bridge",
+  "version": "0.1.0",
+  "config_flow": true,
+  "documentation": "https://github.com/Ossendjiver/HomeMedia-HA-Bridge",
+  "issue_tracker": "https://github.com/Ossendjiver/HomeMedia-HA-Bridge/issues",
+  "codeowners": [
+    "@Ossendjiver"
+  ],
+  "iot_class": "local_polling",
+  "integration_type": "service",
+  "requirements": [],
+  "dependencies": [
+    "http"
+  ]
+}
