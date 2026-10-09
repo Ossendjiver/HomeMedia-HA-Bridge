@@ -21,7 +21,7 @@ QUERY_KEYS = {
 }
 BODY_KEYS = {
     "mix": {"action", "queue_id", "room", "mode", "seed", "angle", "radius"},
-    "event": {"type", "media_type", "title", "artist", "album", "uri", "duration", "room", "reason", "prompt_id", "kind", "action", "angle", "radius", "items", "listening_mood"},
+    "event": {"type", "media_type", "title", "artist", "album", "uri", "duration", "room", "reason", "prompt_id", "kind", "action", "angle", "radius", "items", "listening_mood", "event_id", "timestamp_ms", "seconds"},
     "action": {"kind", "action", "prompt_id", "room"},
 }
 
@@ -54,10 +54,10 @@ def validate(operation, query=None, payload=None):
         if isinstance(value, (dict, list, bool)) or value is None or len(str(value)) > 512:
             raise ValueError("Invalid query value")
     values = payload if method == "POST" else query
-    for key in ("room", "queue_id", "prompt_id", "uri", "title", "artist", "album", "reason", "kind", "type", "media_type", "action", "mode"):
+    for key in ("room", "queue_id", "prompt_id", "uri", "title", "artist", "album", "reason", "kind", "type", "media_type", "action", "mode", "event_id"):
         if key in values and (not isinstance(values[key], str) or len(values[key]) > 4096):
             raise ValueError("Invalid text field")
-    for key, lo, hi in (("angle", 0, 360), ("radius", 0, 1), ("limit", 1, 50), ("duration", 0, 86400)):
+    for key, lo, hi in (("angle", 0, 360), ("radius", 0, 1), ("limit", 1, 50), ("duration", 0, 86400), ("seconds", 0, 86400), ("timestamp_ms", 1, 1e15)):
         if key in values:
             try:
                 number = float(values[key])
@@ -65,6 +65,11 @@ def validate(operation, query=None, payload=None):
                     raise ValueError()
             except (TypeError, ValueError):
                 raise ValueError("Invalid " + key) from None
+    if operation == "event" and payload.get("type") == "listen_feedback":
+        if not re.fullmatch(r"[A-Za-z0-9_-]{16,128}", payload.get("event_id", "")) or payload.get("reason") != "skip":
+            raise ValueError("Invalid listening feedback")
+        if not {"timestamp_ms", "seconds", "title", "uri"} <= set(payload):
+            raise ValueError("Missing listening feedback")
     if operation == "mix":
         if payload.get("action") not in {"begin", "update", "stop"} or not payload.get("queue_id"):
             raise ValueError("A valid mix action and queue are required")

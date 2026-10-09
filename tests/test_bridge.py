@@ -19,6 +19,13 @@ class PolicyTests(unittest.TestCase):
     def test_command_boundary(self):
         for operation, query, payload in [('proxy',{},{}),('mood',{'url':'http://evil'},{}),('mix',{}, {'action':'raw','queue_id':'q'}),('mix',{}, {'action':'update','queue_id':'q','radius':2,'angle':0}),('mix',{}, {'action':'update','queue_id':'q','radius':.5,'angle':math.nan}),('recommend',{'limit':999},{}),('mood',{}, {'host':'evil'})]:
             with self.subTest(operation=operation), self.assertRaises(ValueError):validate(operation,query,payload)
+    def test_skip_feedback_boundary(self):
+        payload=dict(type='listen_feedback', event_id='event-0123456789012345',timestamp_ms=1791514724000,
+                     seconds=120,title='Song',uri='tidal://track/1',reason='skip')
+        self.assertEqual(validate('event',payload=payload)[:2],('POST','/library/event'))
+        for bad in [dict(payload,event_id='short'),dict(payload,seconds=-1),dict(payload,reason='pause')]:
+            with self.assertRaises(ValueError):validate('event',payload=bad)
+
     def test_valid_commands(self):
         self.assertEqual(validate('mix',{}, {'action':'update','queue_id':'q','angle':270,'radius':.5})[:2],('POST','/library/mix'))
         self.assertEqual(validate('recommend',{'room':'phone','limit':'20'},{} )[0],'GET')
