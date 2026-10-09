@@ -16,11 +16,11 @@ ROUTES = {
 }
 QUERY_KEYS = {
     "recommend": {"room", "limit", "angle", "radius"},
-    "mood": {"room"}, "mix_state": {"queue_id"},
+    "mood": {"room"}, "mix_state": {"queue_id", "feedback"},
     "suggestions": {"room"}, "context": {"room"},
 }
 BODY_KEYS = {
-    "mix": {"action", "queue_id", "room", "mode", "seed", "angle", "radius"},
+    "mix": {"action", "queue_id", "room", "mode", "seed", "angle", "radius", "session_id", "current_item_id", "vote"},
     "event": {"type", "media_type", "title", "artist", "album", "uri", "duration", "room", "reason", "prompt_id", "kind", "action", "angle", "radius", "items", "listening_mood", "event_id", "timestamp_ms", "seconds"},
     "action": {"kind", "action", "prompt_id", "room"},
 }
@@ -70,9 +70,17 @@ def validate(operation, query=None, payload=None):
             raise ValueError("Invalid listening feedback")
         if not {"timestamp_ms", "seconds", "title", "uri"} <= set(payload):
             raise ValueError("Missing listening feedback")
+    if operation == "mix_state" and query.get("feedback", "0") not in ("0", "1"):
+        raise ValueError("Invalid feedback query")
     if operation == "mix":
-        if payload.get("action") not in {"begin", "update", "stop"} or not payload.get("queue_id"):
+        if payload.get("action") not in {"begin", "update", "stop", "feedback"} or not payload.get("queue_id"):
             raise ValueError("A valid mix action and queue are required")
+        if payload["action"] == "feedback":
+            if type(payload.get("vote")) is not int or payload["vote"] not in (-1, 0, 1):
+                raise ValueError("Invalid session vote")
+            for key in ("session_id", "current_item_id"):
+                if not isinstance(payload.get(key), str) or not 1 <= len(payload[key]) <= 512:
+                    raise ValueError("A session and current song are required")
         if payload["action"] == "update" and not {"angle", "radius"} <= set(payload):
             raise ValueError("Mood coordinates are required")
         if payload.get("mode", "mood") not in {"mood", "radio"}:
