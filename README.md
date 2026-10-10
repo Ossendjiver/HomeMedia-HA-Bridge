@@ -39,3 +39,12 @@ PYTHONPATH=. python -W ignore -m unittest discover -s tests -v
 ```
 
 Version 0.1.3 permits bounded, vote-specific session feedback reasons. Update through HACS and restart Home Assistant to use Home Media long-press feedback remotely. No new backend routes or arbitrary URLs are permitted.
+
+### Feedback matching reasons (0.1.4)
+
+Both positive and negative queue-session feedback accept `track_match`,
+`genre_match`, `mood_match` and `tempo_match`. `overplayed` remains negative only;
+older reason keys remain compatible. These are validated reason IDs, not arbitrary
+commands or routes. Update through HACS and restart Home Assistant to load this
+version before using the new reasons over the remote connection. Local BS5c
+connections do not pass through this integration.

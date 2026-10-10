@@ -80,7 +80,8 @@ def validate(operation, query=None, payload=None):
         if payload["action"] == "feedback":
             if type(payload.get("vote")) is not int or payload["vote"] not in (-1, 0, 1):
                 raise ValueError("Invalid session vote")
-            reasons = {1: {"more_like_this"}, -1: {"wrong_mood", "overplayed", "dislike_recording"}, 0: set()}
+            matches = {"track_match", "genre_match", "mood_match", "tempo_match"}
+            reasons = {1: matches | {"more_like_this"}, -1: matches | {"wrong_mood", "overplayed", "dislike_recording"}, 0: set()}
             if "reason" in payload and payload["reason"] not in reasons[payload["vote"]]:
                 raise ValueError("Invalid reason for session vote")
             for key in ("session_id", "current_item_id"):

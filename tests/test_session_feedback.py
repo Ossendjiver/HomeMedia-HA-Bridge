@@ -13,7 +13,7 @@ class SessionFeedbackTests(unittest.TestCase):
 
     def test_reasons_are_vote_scoped_and_cannot_change_routes(self):
         payload = dict(action='feedback', queue_id='q', session_id='s', current_item_id='i')
-        for vote, reasons in ((1, ['more_like_this']), (-1, ['wrong_mood', 'overplayed', 'dislike_recording'])):
+        for vote, reasons in ((1, ['track_match', 'genre_match', 'mood_match', 'tempo_match', 'more_like_this']), (-1, ['track_match', 'genre_match', 'mood_match', 'tempo_match', 'wrong_mood', 'overplayed', 'dislike_recording'])):
             for reason in reasons:
                 self.assertEqual(validate('mix', payload=dict(payload, vote=vote, reason=reason))[1], '/library/mix')
         for vote, reason in ((1,'wrong_mood'), (-1,'more_like_this'), (0,'overplayed'), (-1,'http://evil'), (-1,'')):
