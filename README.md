@@ -37,3 +37,5 @@ Tested against Home Assistant 2026.9.4. The test suite uses a fake local BS5c se
 ```sh
 PYTHONPATH=. python -W ignore -m unittest discover -s tests -v
 ```
+
+Version 0.1.3 permits bounded, vote-specific session feedback reasons. Update through HACS and restart Home Assistant to use Home Media long-press feedback remotely. No new backend routes or arbitrary URLs are permitted.

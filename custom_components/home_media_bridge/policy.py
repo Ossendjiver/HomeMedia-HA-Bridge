@@ -20,7 +20,7 @@ QUERY_KEYS = {
     "suggestions": {"room"}, "context": {"room"},
 }
 BODY_KEYS = {
-    "mix": {"action", "queue_id", "room", "mode", "seed", "angle", "radius", "session_id", "current_item_id", "vote"},
+    "mix": {"action", "queue_id", "room", "mode", "seed", "angle", "radius", "session_id", "current_item_id", "vote", "reason"},
     "event": {"type", "media_type", "title", "artist", "album", "uri", "duration", "room", "reason", "prompt_id", "kind", "action", "angle", "radius", "items", "listening_mood", "event_id", "timestamp_ms", "seconds"},
     "action": {"kind", "action", "prompt_id", "room"},
 }
@@ -75,9 +75,14 @@ def validate(operation, query=None, payload=None):
     if operation == "mix":
         if payload.get("action") not in {"begin", "update", "stop", "feedback"} or not payload.get("queue_id"):
             raise ValueError("A valid mix action and queue are required")
+        if "reason" in payload and payload["action"] != "feedback":
+            raise ValueError("Reasons are only valid for session feedback")
         if payload["action"] == "feedback":
             if type(payload.get("vote")) is not int or payload["vote"] not in (-1, 0, 1):
                 raise ValueError("Invalid session vote")
+            reasons = {1: {"more_like_this"}, -1: {"wrong_mood", "overplayed", "dislike_recording"}, 0: set()}
+            if "reason" in payload and payload["reason"] not in reasons[payload["vote"]]:
+                raise ValueError("Invalid reason for session vote")
             for key in ("session_id", "current_item_id"):
                 if not isinstance(payload.get(key), str) or not 1 <= len(payload[key]) <= 512:
                     raise ValueError("A session and current song are required")
