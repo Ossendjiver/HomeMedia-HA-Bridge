@@ -50,3 +50,17 @@ version before using the new reasons over the remote connection. Local BS5c
 connections do not pass through this integration.
 
 Version 0.1.5 permits bounded saved-session feedback through the existing event route, including its original session/song IDs, deduplication ID and timestamp. Update through HACS and restart Home Assistant before using this from the next Home Media app build. Existing direct feedback continues working. No arbitrary URLs or new upstream routes are permitted.
+
+### WiiM custom room EQ (0.1.6)
+
+`GET /api/home_media_bridge/wiim-eq` reads the active source's custom PEQ
+name, enabled state and channel mode directly from WiiM using the same LV2 PEQ
+API as HA's `pywiim` profile loader. The generic `sound_mode`/`eq=0` graphic EQ
+value is not substituted. Results expire after 10 seconds; failures do not
+return stale profiles. This authenticated route has no parameters and cannot
+change EQ or playback. Configure the private WiiM host when adding the bridge
+(default `192.168.4.118`, also used by existing entries). The fixed local WiiM
+request permits its self-signed certificate, forwards no HA credentials,
+follows no redirects, and bounds response size and timeout.
+
+Protocol reference: mjcumming/pywiim `api/peq.py`, `get_peq_bands()`.

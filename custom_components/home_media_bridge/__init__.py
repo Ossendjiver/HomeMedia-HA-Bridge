@@ -7,11 +7,13 @@ from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.exceptions import ConfigEntryNotReady
 from .client import BridgeClient, BridgeUnavailable
 from .const import DOMAIN, API_VERSION, CALLBACK
+from .wiim_eq import WiiMEqReader, CONF_WIIM_HOST, DEFAULT_WIIM_HOST
 
 async def async_setup(hass, config):
     hass.data.setdefault(DOMAIN, {})
     hass.http.register_view(AuthClientView())
     hass.http.register_view(BridgeView(hass))
+    hass.http.register_view(WiiMEqView(hass))
     return True
 
 async def async_setup_entry(hass, entry):
@@ -20,6 +22,7 @@ async def async_setup_entry(hass, entry):
         await client.request("mood", {"room": "lounge"})
     except BridgeUnavailable as error:
         raise ConfigEntryNotReady("BS5c library is unavailable") from error
+    client.wiim_eq = WiiMEqReader(async_get_clientsession(hass), entry.data.get(CONF_WIIM_HOST, DEFAULT_WIIM_HOST))
     hass.data[DOMAIN][entry.entry_id] = client
     return True
 
@@ -75,3 +78,26 @@ class BridgeView(HomeAssistantView):
         except BridgeUnavailable:
             # Never automatically replay a mutation that may already have completed.
             return web.json_response({"error":"BS5c library unavailable; check its local service"}, status=502)
+
+
+class WiiMEqView(HomeAssistantView):
+    """Authenticated fixed read route; cannot apply a profile or change playback."""
+    url = "/api/home_media_bridge/wiim-eq"
+    name = "api:home_media_bridge:wiim_eq"
+    requires_auth = True
+
+    def __init__(self, hass):
+        self.hass = hass
+
+    async def get(self, request):
+        headers = {"Cache-Control": "no-store"}
+        if request.query:
+            return web.json_response({"error": "EQ status does not accept parameters"}, status=400, headers=headers)
+        clients = list(self.hass.data.get(DOMAIN, {}).values())
+        reader = getattr(clients[0], "wiim_eq", None) if clients else None
+        if reader is None:
+            return web.json_response({"available": False}, status=503, headers=headers)
+        try:
+            return web.json_response(await reader.status(), headers=headers)
+        except BridgeUnavailable:
+            return web.json_response({"available": False}, status=502, headers=headers)
