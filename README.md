@@ -48,3 +48,5 @@ older reason keys remain compatible. These are validated reason IDs, not arbitra
 commands or routes. Update through HACS and restart Home Assistant to load this
 version before using the new reasons over the remote connection. Local BS5c
 connections do not pass through this integration.
+
+Version 0.1.5 permits bounded saved-session feedback through the existing event route, including its original session/song IDs, deduplication ID and timestamp. Update through HACS and restart Home Assistant before using this from the next Home Media app build. Existing direct feedback continues working. No arbitrary URLs or new upstream routes are permitted.

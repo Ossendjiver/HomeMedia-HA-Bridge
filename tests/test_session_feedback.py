@@ -19,3 +19,10 @@ class SessionFeedbackTests(unittest.TestCase):
         for vote, reason in ((1,'wrong_mood'), (-1,'more_like_this'), (0,'overplayed'), (-1,'http://evil'), (-1,'')):
             with self.assertRaises(ValueError): validate('mix', payload=dict(payload, vote=vote, reason=reason))
         with self.assertRaises(ValueError): validate('mix', payload=dict(payload, action='begin', vote=-1, reason='overplayed'))
+
+    def test_saved_session_feedback_cannot_expand_bridge_access(self):
+        event=dict(type='session_feedback',queue_id='q',session_id='s',current_item_id='i',vote=-1,
+                   reason='genre_match',event_id='feedback-event-0001',timestamp_ms=1791800000000)
+        self.assertEqual(validate('event',payload=event)[:2],('POST','/library/event'))
+        for change in ({'vote':True},{'session_id':''},{'url':'http://evil'},{'event_id':'bad'},{'reason':'more_like_this'}):
+            with self.assertRaises(ValueError):validate('event',payload=dict(event,**change))

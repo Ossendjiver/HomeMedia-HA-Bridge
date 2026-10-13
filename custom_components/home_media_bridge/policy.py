@@ -21,7 +21,7 @@ QUERY_KEYS = {
 }
 BODY_KEYS = {
     "mix": {"action", "queue_id", "room", "mode", "seed", "angle", "radius", "session_id", "current_item_id", "vote", "reason"},
-    "event": {"type", "media_type", "title", "artist", "album", "uri", "duration", "room", "reason", "prompt_id", "kind", "action", "angle", "radius", "items", "listening_mood", "event_id", "timestamp_ms", "seconds"},
+    "event": {"type", "media_type", "title", "artist", "album", "uri", "duration", "room", "reason", "prompt_id", "kind", "action", "angle", "radius", "items", "listening_mood", "event_id", "timestamp_ms", "seconds", "queue_id", "session_id", "current_item_id", "vote"},
     "action": {"kind", "action", "prompt_id", "room"},
 }
 
@@ -70,6 +70,10 @@ def validate(operation, query=None, payload=None):
             raise ValueError("Invalid listening feedback")
         if not {"timestamp_ms", "seconds", "title", "uri"} <= set(payload):
             raise ValueError("Missing listening feedback")
+    if operation == "event" and payload.get("type") == "session_feedback":
+        validate("mix", payload={k: payload[k] for k in ("queue_id", "session_id", "current_item_id", "vote", "reason") if k in payload} | {"action": "feedback"})
+        if not re.fullmatch(r"[A-Za-z0-9_-]{16,128}", payload.get("event_id", "")) or "timestamp_ms" not in payload:
+            raise ValueError("Invalid saved session feedback")
     if operation == "mix_state" and query.get("feedback", "0") not in ("0", "1"):
         raise ValueError("Invalid feedback query")
     if operation == "mix":
