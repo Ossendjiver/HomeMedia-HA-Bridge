@@ -7,17 +7,23 @@ class BridgeUnavailable(Exception):
     """The local service cannot answer this request."""
 
 class BridgeClient:
-    def __init__(self, session, host, port):
+    def __init__(self, session, host, port, coordinator_key=""):
         self.session = session
+        self.coordinator_key = coordinator_key
         host = local_host(host)
         self.base = f"http://{'['+host+']' if ':' in host else host}:{int(port)}"
 
     async def request(self, operation, query=None, payload=None):
         method, path, query, payload = validate(operation, query, payload)
+        if operation.startswith("playback_") and operation != "playback_capabilities" and len(self.coordinator_key)<32:
+            raise BridgeUnavailable("Configure the dedicated BS5c coordinator key first")
+        headers = {"X-HomeMedia-Key": self.coordinator_key} if operation.startswith("playback_") and self.coordinator_key else {}
         try:
-            async with self.session.request(method, self.base + path, params=query,
+            async with self.session.request(method, self.base + path, params=query, headers=headers,
                 json=payload if method == "POST" else None, allow_redirects=False,
                 timeout=aiohttp.ClientTimeout(total=35, connect=5)) as response:
+                if operation == "playback_capabilities" and response.status == 404:
+                    return {"api_version":1,"enabled":False}
                 if not 200 <= response.status < 300:
                     raise BridgeUnavailable("BS5c library did not accept the request")
                 data = bytearray()
@@ -29,6 +35,8 @@ class BridgeClient:
                 result = json.loads(data)
                 if not isinstance(result, dict):
                     raise BridgeUnavailable("Invalid BS5c response")
+                if operation == "playback_capabilities" and result.get("enabled") and len(self.coordinator_key)<32:
+                    result["setup_error"]=True
                 return result
         except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as error:
             raise BridgeUnavailable("BS5c library unavailable or invalid response") from error

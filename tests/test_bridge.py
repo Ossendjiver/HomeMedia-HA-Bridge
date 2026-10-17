@@ -48,6 +48,15 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
         await self.bridge.request('mix',payload={'action':'stop','queue_id':'q'})
         self.assertEqual([x[:3] for x in self.calls],[('GET','/library/mood',None),('POST','/library/mix',None)])
         self.assertEqual(self.calls[1][4],{'action':'stop','queue_id':'q'})
+    async def test_capabilities_flag_incomplete_key_before_submission(self):
+        async def capabilities(request):return web.json_response({'api_version':1,'enabled':True})
+        app=web.Application();app.router.add_get('/library/playback/capabilities',capabilities)
+        async with TestServer(app) as server:
+            missing=BridgeClient(self.session,'127.0.0.1',server.port)
+            self.assertTrue((await missing.request('playback_capabilities'))['setup_error'])
+            configured=BridgeClient(self.session,'127.0.0.1',server.port,'x'*48)
+            self.assertNotIn('setup_error',await configured.request('playback_capabilities'))
+
     async def test_rejects_before_network(self):
         with self.assertRaises(ValueError):await self.bridge.request('proxy',{'url':'http://evil'})
         self.assertEqual(self.calls,[])
@@ -66,7 +75,8 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(BridgeUnavailable):await bridge.request('mix',payload={'action':'stop','queue_id':'q'})
         self.assertEqual(seen,['POST'])
     async def test_actual_ha_views_and_unload(self):
-        hass=SimpleNamespace(data={'home_media_bridge':{'entry':self.bridge}})
+        from unittest.mock import AsyncMock
+        hass=SimpleNamespace(data={'home_media_bridge':{'entry':self.bridge}}, config_entries=SimpleNamespace(async_unload_platforms=AsyncMock(return_value=True)))
         view=BridgeView(hass)
         self.assertTrue(view.requires_auth)
         status=await view.get(make_mocked_request('GET','/api/home_media_bridge'))

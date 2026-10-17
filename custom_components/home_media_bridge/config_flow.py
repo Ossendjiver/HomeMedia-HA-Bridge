@@ -1,6 +1,7 @@
 """Set up the bridge to a local BS5c device."""
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.core import callback
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .client import BridgeClient, BridgeUnavailable
@@ -10,6 +11,12 @@ from .wiim_eq import CONF_WIIM_HOST, DEFAULT_WIIM_HOST
 
 class HomeMediaBridgeFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        return HomeMediaOptionsFlow()
+
 
     async def async_step_user(self, user_input=None):
         if self._async_current_entries():
@@ -36,3 +43,19 @@ class HomeMediaBridgeFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional(CONF_WIIM_HOST, default=DEFAULT_WIIM_HOST): str,
             vol.Required(CONF_PORT, default=DEFAULT_PORT): vol.All(vol.Coerce(int), vol.Range(min=1,max=65535)),
         }), errors=errors)
+
+
+class HomeMediaOptionsFlow(config_entries.OptionsFlow):
+    async def async_step_init(self, user_input=None):
+        errors={}
+        if user_input is not None:
+            key=user_input.get("coordinator_key","").strip()
+            if key and not 32 <= len(key) <= 256: errors["base"]="invalid_coordinator_key"
+            else:
+                updated=dict(self.config_entry.options)
+                if key:updated["coordinator_key"]=key
+                return self.async_create_entry(title="",data=updated)
+        from homeassistant.helpers import selector
+        return self.async_show_form(step_id="init",data_schema=vol.Schema({
+            vol.Optional("coordinator_key"):selector.TextSelector(selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)),
+        }),errors=errors)
