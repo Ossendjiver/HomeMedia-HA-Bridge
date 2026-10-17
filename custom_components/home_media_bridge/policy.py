@@ -5,6 +5,10 @@ import math
 import re
 
 ROUTES = {
+    "playback_capabilities": ("GET", "/library/playback/capabilities"),
+    "playback_state": ("GET", "/library/playback/state"),
+    "playback_status": ("GET", "/library/playback/jobs"),
+    "playback_intent": ("POST", "/library/playback/jobs"),
     "recommend": ("GET", "/library/recommend/music"),
     "mood": ("GET", "/library/mood"),
     "mix_state": ("GET", "/library/mix"),
@@ -15,11 +19,13 @@ ROUTES = {
     "action": ("POST", "/library/action"),
 }
 QUERY_KEYS = {
+    "playback_status": {"job_id"},
     "recommend": {"room", "limit", "angle", "radius"},
     "mood": {"room"}, "mix_state": {"queue_id", "feedback"},
     "suggestions": {"room"}, "context": {"room"},
 }
 BODY_KEYS = {
+    "playback_intent": {"request_id", "operation", "source", "target"},
     "mix": {"action", "queue_id", "room", "mode", "seed", "angle", "radius", "session_id", "current_item_id", "vote", "reason"},
     "event": {"type", "media_type", "title", "artist", "album", "uri", "duration", "room", "reason", "prompt_id", "kind", "action", "angle", "radius", "items", "listening_mood", "event_id", "timestamp_ms", "seconds", "queue_id", "session_id", "current_item_id", "vote"},
     "action": {"kind", "action", "prompt_id", "room"},
@@ -97,4 +103,18 @@ def validate(operation, query=None, payload=None):
             raise ValueError("Invalid mix mode")
         if "seed" in payload and not isinstance(payload["seed"], dict):
             raise ValueError("Seed must be an object")
+    if operation == "playback_status" and not re.fullmatch(r"[A-Za-z0-9_-]{16,96}",query.get("job_id","")):
+        raise ValueError("Invalid playback job ID")
+    if operation == "playback_intent":
+        if not re.fullmatch(r"[A-Za-z0-9_-]{16,96}",payload.get("request_id","")) or payload.get("operation") not in {"transfer","join","leave"}:
+            raise ValueError("Invalid playback intent")
+        for key in ("source","target"):
+            if key not in payload:
+                if key == "source" and payload["operation"] not in {"join","transfer"}: continue
+                raise ValueError("A playback endpoint is required")
+            endpoint=payload[key]
+            if not isinstance(endpoint,dict) or set(endpoint)-{"kind","player_id","room","player"}:
+                raise ValueError("Invalid playback endpoint")
+            if any(not isinstance(value,str) or len(value)>128 for value in endpoint.values()):
+                raise ValueError("Invalid playback endpoint value")
     return method, path, query, payload

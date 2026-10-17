@@ -19,5 +19,19 @@
       "single_instance_allowed": "Only one Home Media bridge is supported.",
       "already_configured": "This bridge is already configured."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Backend playback coordination",
+        "description": "Enter the dedicated BS5c coordinator key. Leave blank to keep the existing key. HA login credentials are never forwarded to BS5c.",
+        "data": {
+          "coordinator_key": "BS5c coordinator key"
+        }
+      }
+    },
+    "error": {
+      "invalid_coordinator_key": "Use a coordinator key with 32 to 256 characters."
+    }
   }
 }
