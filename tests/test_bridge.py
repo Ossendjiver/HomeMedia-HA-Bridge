@@ -12,7 +12,7 @@ from custom_components.home_media_bridge import AuthClientView, BridgeView, asyn
 
 class PolicyTests(unittest.TestCase):
     def test_host_boundary(self):
-        self.assertEqual(local_host('192.168.4.103'), '192.168.4.103')
+        self.assertEqual(local_host('127.0.0.1'), '127.0.0.1')
         self.assertEqual(local_host('beosound5c.local'),'beosound5c.local')
         for host in ['https://example.org','8.8.8.8','169.254.169.254/secret','0.0.0.0','evil.local/path','224.0.0.1','example.com']:
             with self.subTest(host=host), self.assertRaises(ValueError):local_host(host)
@@ -74,6 +74,31 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
             bridge=BridgeClient(self.session,'127.0.0.1',server.port)
             with self.assertRaises(BridgeUnavailable):await bridge.request('mix',payload={'action':'stop','queue_id':'q'})
         self.assertEqual(seen,['POST'])
+    async def test_rejected_mix_has_distinct_safe_category_and_no_replay(self):
+        seen=[]
+        async def fail(request):
+            seen.append(request.method)
+            return web.Response(status=400,text='private token URL must never be echoed')
+        app=web.Application();app.router.add_post('/library/mix',fail)
+        async with TestServer(app) as server:
+            bridge=BridgeClient(self.session,'127.0.0.1',server.port)
+            with self.assertRaises(BridgeUnavailable) as caught:
+                await bridge.request('mix',payload={'action':'update','queue_id':'q','angle':90,'radius':.5})
+            self.assertEqual(caught.exception.status,409)
+            self.assertEqual(caught.exception.code,'mix_rejected')
+            self.assertNotIn('private',str(caught.exception))
+        self.assertEqual(seen,['POST'])
+
+    async def test_timeout_has_unknown_outcome_and_is_not_replayed(self):
+        from unittest.mock import MagicMock
+        session=MagicMock();session.request.side_effect=asyncio.TimeoutError()
+        bridge=BridgeClient(session,'127.0.0.1',8080)
+        with self.assertRaises(BridgeUnavailable) as caught:
+            await bridge.request('mix',payload={'action':'stop','queue_id':'q'})
+        self.assertEqual(caught.exception.status,504)
+        self.assertEqual(caught.exception.code,'backend_timeout')
+        self.assertEqual(session.request.call_count,1)
+
     async def test_actual_ha_views_and_unload(self):
         from unittest.mock import AsyncMock
         hass=SimpleNamespace(data={'home_media_bridge':{'entry':self.bridge}}, config_entries=SimpleNamespace(async_unload_platforms=AsyncMock(return_value=True)))

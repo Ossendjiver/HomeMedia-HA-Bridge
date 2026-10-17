@@ -109,9 +109,9 @@ class BridgeView(HomeAssistantView):
             return web.json_response(result, headers={"Cache-Control":"no-store"})
         except (ValueError, TypeError):
             return web.json_response({"error":"Invalid or unsupported bridge command"}, status=400)
-        except BridgeUnavailable:
+        except BridgeUnavailable as error:
             # Never automatically replay a mutation that may already have completed.
-            return web.json_response({"error":"BS5c library unavailable; check its local service"}, status=502)
+            return web.json_response({"error":str(error), "code":error.code, "outcome":"unknown" if error.status >= 500 else "rejected"}, status=error.status)
 
 
 class WiiMEqView(HomeAssistantView):
