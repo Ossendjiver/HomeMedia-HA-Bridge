@@ -1,9 +1,13 @@
-# MLGW feedback investigation — ON HOLD
+# MLGW address discovery repair
 
-Do not deploy `source-request-power.patch`. It is an investigative proposal, not a confirmed repair for the reported room-status problem. Home Media Bridge does not apply it automatically.
+Live reproduction confirmed crossed feedback attribution between two products: individually addressed harmless LIGHT TIMEOUT probes returned consistent bus addresses, but HA attached each to the other entity. The installed startup discovery broadcasts probes in a burst and pairs replies by arrival position. Reordered or missing replies can therefore corrupt the room-to-address map.
 
-The incident logs show an HA room-status change immediately after a source telegram. They do not establish whether the cause is incorrect commands, routing/automation side effects, ML-address attribution, or the existing feedback implementation. An offline listener reproduction demonstrates a possible code path; it does not establish the cause on the installed system. Previously working physical-remote feedback is important counter-evidence.
+`address-discovery.patch` changes MLGW 2024.8.2 discovery to probe one product at a time. It stops on timeout, missing address, or duplicate address, and always removes the listener. Source IDs and existing source/power feedback semantics are preserved.
 
-The proposed patch changes how inactive receivers handle source requests and can leave real physical-remote activations unconfirmed. Preserve the installed MLGW behaviour while command provenance and device mapping are investigated. Keep intentional LINK/TV source mappings unchanged.
+Back up the installed module and apply only if the patch matches its exact source. Restart HA while routing is idle, then verify each target with separate harmless probes and a controlled transfer. Home Media Bridge does not install this companion patch automatically.
 
-The patch and event tests are retained only for investigation. It must not be included in a routine HA deployment. Any future change needs evidence identifying the faulty layer and targeted physical validation when live tests are authorized.
+Six offline tests cover normal assignment, timeout, duplicate address, disabled logging, absent ML connection, and cancellation. The reported transfer was reproduced before deployment; post-deployment results are recorded separately.
+
+## Earlier proposal remains on hold
+
+Do not deploy `source-request-power.patch`. It was an investigative proposal and changes power-feedback semantics. Address attribution, rather than the source-to-power inference, was directly shown to be wrong in the reproduced incident.
