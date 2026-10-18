@@ -4,7 +4,7 @@ from unittest.mock import patch
 from types import SimpleNamespace
 from aiohttp import ClientSession, web
 from aiohttp.test_utils import TestServer, make_mocked_request
-from custom_components.home_media_bridge.wiim_eq import WiiMEqReader, profile_status
+from custom_components.home_media_bridge.wiim_eq import WiiMEqReader, profile_status, PEQ_READ_COMMAND
 from custom_components.home_media_bridge.client import BridgeUnavailable
 from custom_components.home_media_bridge import WiiMEqView
 
@@ -19,7 +19,7 @@ class ProfileTests(unittest.TestCase):
         for raw in [None,{},dict(status='Failed'),dict(status='OK',EQStat='Unknown')]:
             with self.assertRaises(ValueError):profile_status(raw)
     def test_untrusted_hosts(self):
-        for host in ['8.8.8.8','https://192.168.4.118','192.168.4.118/secret']:
+        for host in ['8.8.8.8','https://127.0.0.1','127.0.0.1/secret']:
             with self.assertRaises(ValueError):WiiMEqReader(None,host)
 
 class ReaderTests(unittest.IsolatedAsyncioTestCase):
@@ -37,7 +37,8 @@ class ReaderTests(unittest.IsolatedAsyncioTestCase):
             with patch.object(session,'get',side_effect=local_get):
                 self.assertEqual((await reader.status())['profile'],'BL9 Stereo Flat')
                 await reader.status();self.assertEqual(len(seen),1)
-                self.assertEqual(seen[0],('GET','EQGetLV2BandEx:http://moddevices.com/plugins/caps/EqNp',None))
+                self.assertEqual(json.loads(PEQ_READ_COMMAND.split(":", 1)[1])["EQLevel"], 2)
+                self.assertEqual(seen[0],('GET',PEQ_READ_COMMAND,None))
                 reader._expires=0;fail=True
                 with self.assertRaises(BridgeUnavailable):await reader.status()
                 self.assertIsNone(reader._cached)

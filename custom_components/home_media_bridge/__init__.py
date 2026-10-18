@@ -46,7 +46,8 @@ async def async_setup_entry(hass, entry):
         if guard is None or guard.state != "off": return True
         return any((state:=hass.states.get("script."+name+"_hm_worker")) is not None and state.state == "on" for name in ROUTER_SCRIPTS)
     client.routing_lease = RoutingLease(legacy_busy)
-    client.wiim_eq = WiiMEqReader(async_get_clientsession(hass), entry.data.get(CONF_WIIM_HOST, DEFAULT_WIIM_HOST))
+    wiim_host = entry.options.get(CONF_WIIM_HOST, entry.data.get(CONF_WIIM_HOST, DEFAULT_WIIM_HOST))
+    client.wiim_eq = WiiMEqReader(async_get_clientsession(hass), wiim_host) if wiim_host else None
     hass.data[DOMAIN][entry.entry_id] = client
     await hass.config_entries.async_forward_entry_setups(entry, ["binary_sensor"])
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))

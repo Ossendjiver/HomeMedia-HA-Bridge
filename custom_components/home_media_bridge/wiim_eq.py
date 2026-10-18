@@ -11,9 +11,9 @@ from aiohttp import ClientTimeout
 from .client import BridgeUnavailable
 from .policy import local_host
 
-DEFAULT_WIIM_HOST = "192.168.4.118"
+DEFAULT_WIIM_HOST = ""
 CONF_WIIM_HOST = "wiim_host"
-PEQ_READ_COMMAND = "EQGetLV2BandEx:http://moddevices.com/plugins/caps/EqNp"
+PEQ_READ_COMMAND = "EQGetLV2SourceBandEx:" + json.dumps({"source_name": "wifi", "pluginURI": "http://moddevices.com/plugins/caps/EqNp", "EQLevel": 2}, separators=(",", ":"))
 
 
 def profile_status(raw):
@@ -28,7 +28,7 @@ def profile_status(raw):
     return {"available": True, "enabled": state == "on", "profile": name.strip(),
             "source": str(raw.get("source_name", ""))[:64],
             "channel_mode": str(raw.get("channelMode", ""))[:32],
-            "observed_at_ms": int(time.time() * 1000)}
+            "eq_level": 2, "observed_at_ms": int(time.time() * 1000)}
 
 
 class WiiMEqReader:

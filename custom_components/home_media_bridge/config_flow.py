@@ -26,7 +26,8 @@ class HomeMediaBridgeFlow(config_entries.ConfigFlow, domain=DOMAIN):
             try:
                 host = local_host(user_input[CONF_HOST])
                 port = int(user_input[CONF_PORT])
-                wiim_host = local_host(user_input.get(CONF_WIIM_HOST, DEFAULT_WIIM_HOST))
+                wiim_value = user_input.get(CONF_WIIM_HOST, DEFAULT_WIIM_HOST).strip()
+                wiim_host = local_host(wiim_value) if wiim_value else ""
                 if not 1 <= port <= 65535:
                     raise ValueError("Invalid port")
                 client = BridgeClient(async_get_clientsession(self.hass), host, port)
@@ -54,8 +55,13 @@ class HomeMediaOptionsFlow(config_entries.OptionsFlow):
             else:
                 updated=dict(self.config_entry.options)
                 if key:updated["coordinator_key"]=key
+                wiim_value=user_input.get(CONF_WIIM_HOST, self.config_entry.data.get(CONF_WIIM_HOST, "")).strip()
+                try:updated[CONF_WIIM_HOST]=local_host(wiim_value) if wiim_value else ""
+                except ValueError:
+                    return self.async_abort(reason="invalid_host")
                 return self.async_create_entry(title="",data=updated)
         from homeassistant.helpers import selector
         return self.async_show_form(step_id="init",data_schema=vol.Schema({
+            vol.Optional(CONF_WIIM_HOST, default=self.config_entry.options.get(CONF_WIIM_HOST, self.config_entry.data.get(CONF_WIIM_HOST, ""))):str,
             vol.Optional("coordinator_key"):selector.TextSelector(selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)),
         }),errors=errors)
