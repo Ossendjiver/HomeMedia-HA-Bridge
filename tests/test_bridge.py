@@ -99,6 +99,24 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(caught.exception.code,'backend_timeout')
         self.assertEqual(session.request.call_count,1)
 
+    async def test_playback_read_deadline_precedes_app_deadline_without_replaying(self):
+        from unittest.mock import MagicMock
+        for op in ['playback_capabilities','playback_state','playback_status']:
+            session=MagicMock();session.request.side_effect=asyncio.TimeoutError()
+            bridge=BridgeClient(session,'127.0.0.1',8080,'x'*48)
+            with self.assertRaises(BridgeUnavailable) as caught:
+                await bridge.request(op,query={'job_id':'request-0123456789012345'} if op=='playback_status' else {})
+            self.assertEqual(caught.exception.code,'backend_read_timeout')
+            self.assertEqual(session.request.call_args.kwargs['timeout'].total,8)
+            self.assertEqual(session.request.call_count,1)
+        session=MagicMock();session.request.side_effect=asyncio.TimeoutError()
+        bridge=BridgeClient(session,'127.0.0.1',8080,'x'*48)
+        with self.assertRaises(BridgeUnavailable) as caught:
+            await bridge.request('playback_intent',payload={'request_id':'request-0123456789012345','operation':'leave','target':{'room':'lounge'}})
+        self.assertEqual(caught.exception.code,'backend_timeout')
+        self.assertEqual(session.request.call_args.kwargs['timeout'].total,35)
+        self.assertEqual(session.request.call_count,1)
+
     async def test_actual_ha_views_and_unload(self):
         from unittest.mock import AsyncMock
         hass=SimpleNamespace(data={'home_media_bridge':{'entry':self.bridge}}, config_entries=SimpleNamespace(async_unload_platforms=AsyncMock(return_value=True)))

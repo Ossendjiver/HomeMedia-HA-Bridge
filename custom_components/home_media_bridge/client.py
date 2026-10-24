@@ -23,10 +23,11 @@ class BridgeClient:
         if operation.startswith("playback_") and operation != "playback_capabilities" and len(self.coordinator_key)<32:
             raise BridgeUnavailable("Configure the dedicated BS5c coordinator key first")
         headers = {"X-HomeMedia-Key": self.coordinator_key} if operation.startswith("playback_") and self.coordinator_key else {}
+        read_only = operation in {"playback_capabilities", "playback_state", "playback_status"}
         try:
             async with self.session.request(method, self.base + path, params=query, headers=headers,
                 json=payload if method == "POST" else None, allow_redirects=False,
-                timeout=aiohttp.ClientTimeout(total=35, connect=5)) as response:
+                timeout=aiohttp.ClientTimeout(total=8 if read_only else 35, connect=5)) as response:
                 if operation == "playback_capabilities" and response.status == 404:
                     return {"api_version":1,"enabled":False}
                 if not 200 <= response.status < 300:
@@ -48,6 +49,8 @@ class BridgeClient:
                 return result
         except asyncio.TimeoutError as error:
             _LOGGER.warning("BS5c operation %s timed out", operation)
+            if read_only:
+                raise BridgeUnavailable("BS5c playback status/preflight read timed out; no playback command was submitted by this read", "backend_read_timeout", 504) from error
             raise BridgeUnavailable("BS5c request timed out; completion is unknown and it has not been retried", "backend_timeout", 504) from error
         except (aiohttp.ClientError, ValueError) as error:
             raise BridgeUnavailable("BS5c library unavailable or invalid response") from error
